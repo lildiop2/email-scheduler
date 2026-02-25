@@ -1,0 +1,9 @@
+{
+  "name": "email-scheduler",
+  "private": true,
+  "workspaces": [
+    "backend/api",
+    "backend/worker",
+    "frontend"
+  ]
+}
