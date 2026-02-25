@@ -8,8 +8,18 @@ export const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/login', name: 'login', component: LoginView },
-    { path: '/', name: 'dashboard', component: DashboardView },
-    { path: '/emails/new', name: 'email-create', component: EmailCreateView },
-    { path: '/emails', name: 'email-list', component: EmailListView }
+    { path: '/', name: 'dashboard', component: DashboardView, meta: { requiresAuth: true } },
+    { path: '/emails/new', name: 'email-create', component: EmailCreateView, meta: { requiresAuth: true } },
+    { path: '/emails', name: 'email-list', component: EmailListView, meta: { requiresAuth: true } }
   ]
+});
+
+router.beforeEach((to) => {
+  if (to.meta.requiresAuth) {
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      return { name: 'login' };
+    }
+  }
+  return true;
 });
