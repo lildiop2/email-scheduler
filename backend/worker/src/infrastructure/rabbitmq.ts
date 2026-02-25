@@ -1,21 +1,24 @@
-import amqplib, { Channel, Connection } from 'amqplib';
+import amqplib, { Channel, ChannelModel } from 'amqplib';
 import { env } from '../config/env';
 import { logger } from './logger';
 
-let connection: Connection | null = null;
+let connection: ChannelModel | null = null;
 let channel: Channel | null = null;
 
 export async function getRabbitChannel(): Promise<Channel> {
   if (channel) return channel;
 
   try {
-    connection = await amqplib.connect(env.rabbitmqUrl);
-    channel = await connection.createChannel();
+    const createdConnection = await amqplib.connect(env.rabbitmqUrl);
+    const createdChannel = await createdConnection.createChannel();
 
-    await channel.assertExchange(env.rabbitmqExchange, 'direct', { durable: true });
-    await channel.assertQueue(env.rabbitmqQueue, { durable: true });
-    await channel.bindQueue(env.rabbitmqQueue, env.rabbitmqExchange, env.rabbitmqRoutingKey);
-    await channel.prefetch(10);
+    await createdChannel.assertExchange(env.rabbitmqExchange, 'direct', { durable: true });
+    await createdChannel.assertQueue(env.rabbitmqQueue, { durable: true });
+    await createdChannel.bindQueue(env.rabbitmqQueue, env.rabbitmqExchange, env.rabbitmqRoutingKey);
+    await createdChannel.prefetch(10);
+
+    connection = createdConnection;
+    channel = createdChannel;
     logger.info('rabbitmq_connected', {
       url: env.rabbitmqUrl,
       exchange: env.rabbitmqExchange,
@@ -27,7 +30,7 @@ export async function getRabbitChannel(): Promise<Channel> {
     throw err;
   }
 
-  return channel;
+  return channel!;
 }
 
 export async function closeRabbit() {

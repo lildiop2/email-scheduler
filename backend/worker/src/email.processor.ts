@@ -54,8 +54,7 @@ export async function processEmail(emailId: string): Promise<ProcessResult> {
     auth: {
       user: env.smtpUser,
       pass: env.smtpPass,
-    },
-    logger: logger,
+    }
   });
 
   try {
@@ -63,8 +62,8 @@ export async function processEmail(emailId: string): Promise<ProcessResult> {
       email.attachments.map((a) => loadAttachment(a)),
     );
 
-    const sanitize = (value?: string) =>
-      value?.trim().replaceAll('"', '\\"') ?? "";
+    const sanitize = (value?: string | null) =>
+      value?.trim().replace(/"/g, '\\"') ?? "";
 
     const name = sanitize(email.from_name);
     const alias = sanitize(email.from_alias) || env.smtpUser;
