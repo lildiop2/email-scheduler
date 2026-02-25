@@ -38,6 +38,7 @@ model Email {
   subject       String
   body_html     String
   from_alias    String?
+  from_name     String?
   status        EmailStatus
   scheduled_at  DateTime
   sent_at       DateTime?

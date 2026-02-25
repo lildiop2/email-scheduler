@@ -54,12 +54,16 @@
           <input v-model="editForm.subject" class="w-full rounded border border-slate-200 px-3 py-2" type="text" />
         </div>
         <div>
+          <label class="mb-2 block text-sm font-medium">Nome do remetente (opcional)</label>
+          <input v-model="editForm.from_name" class="w-full rounded border border-slate-200 px-3 py-2" type="text" />
+        </div>
+        <div>
           <label class="mb-2 block text-sm font-medium">Alias do remetente (opcional)</label>
           <input v-model="editForm.from_alias" class="w-full rounded border border-slate-200 px-3 py-2" type="text" />
         </div>
         <div>
-          <label class="mb-2 block text-sm font-medium">Corpo (HTML)</label>
-          <textarea v-model="editForm.body_html" class="h-32 w-full rounded border border-slate-200 px-3 py-2"></textarea>
+          <label class="mb-2 block text-sm font-medium">Corpo</label>
+          <RichTextEditor v-model="editForm.body_html" />
         </div>
         <div>
           <label class="mb-2 block text-sm font-medium">Destinatários TO (separe por vírgula)</label>
@@ -75,7 +79,32 @@
         </div>
         <div>
           <label class="mb-2 block text-sm font-medium">Anexos (substitui os atuais)</label>
-          <input class="w-full rounded border border-slate-200 px-3 py-2" type="file" multiple @change="handleEditFiles" />
+          <input ref="editFileInputRef" class="w-full rounded border border-slate-200 px-3 py-2" type="file" multiple @change="handleEditFiles" />
+          <div v-if="editFiles.length > 0" class="mt-2 text-xs text-slate-500">
+            {{ editFiles.length }} arquivo(s) selecionado(s) • Total: {{ formatFileSize(totalEditFileSize) }}
+            <button class="ml-2 text-slate-700 underline" type="button" @click="clearEditFiles">Limpar</button>
+          </div>
+          <ul v-if="editFiles.length > 0" class="mt-2 space-y-1 text-xs text-slate-600">
+            <li
+              v-for="(file, index) in editFiles"
+              :key="file.name + file.size + index"
+              class="flex items-center justify-between rounded border border-slate-100 bg-slate-50 px-2 py-1"
+              draggable="true"
+              @dragstart="handleEditDragStart(index)"
+              @dragover.prevent
+              @drop="handleEditDrop(index)"
+            >
+              <span class="flex items-center gap-2">
+                <span class="cursor-move text-slate-400">⋮⋮</span>
+                <span>{{ file.name }} <span class="text-slate-400">({{ formatFileSize(file.size) }})</span></span>
+              </span>
+              <div class="flex items-center gap-2">
+                <button class="text-slate-500 hover:text-slate-900" type="button" @click="moveEditFile(index, -1)">↑</button>
+                <button class="text-slate-500 hover:text-slate-900" type="button" @click="moveEditFile(index, 1)">↓</button>
+                <button class="text-slate-500 hover:text-slate-900" type="button" @click="removeEditFile(index)">Remover</button>
+              </div>
+            </li>
+          </ul>
         </div>
         <div>
           <label class="mb-2 block text-sm font-medium">Agendar para</label>
@@ -92,7 +121,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
+import RichTextEditor from '../components/RichTextEditor.vue';
 import { listEmails, presignAttachment, sendEmailNow, updateEmail } from '../services/emails';
 
 const statuses = ['SCHEDULED', 'SENT', 'FAILED'];
@@ -102,10 +132,14 @@ const loading = ref(false);
 const editing = ref(false);
 const error = ref('');
 const editFiles = ref<File[]>([]);
+const editFileInputRef = ref<HTMLInputElement | null>(null);
+const totalEditFileSize = computed(() => editFiles.value.reduce((sum, file) => sum + file.size, 0));
+const editDragIndex = ref<number | null>(null);
 
 const editForm = reactive({
   id: '',
   subject: '',
+  from_name: '',
   from_alias: '',
   body_html: '',
   to: '',
@@ -137,6 +171,7 @@ function openEdit(email: any) {
   error.value = '';
   editForm.id = email.id;
   editForm.subject = email.subject;
+  editForm.from_name = email.from_name ?? '';
   editForm.from_alias = email.from_alias ?? '';
   editForm.body_html = email.body_html;
   editForm.scheduled_at = email.scheduled_at.slice(0, 16);
@@ -148,6 +183,7 @@ function openEdit(email: any) {
 
 function cancelEdit() {
   editing.value = false;
+  clearEditFiles();
 }
 
 function splitEmails(value: string) {
@@ -157,34 +193,100 @@ function splitEmails(value: string) {
     .filter((email) => email.length > 0);
 }
 
+function stripHtml(value: string) {
+  return value.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+}
+
 function handleEditFiles(event: Event) {
   const target = event.target as HTMLInputElement;
-  editFiles.value = target.files ? Array.from(target.files) : [];
+  const next = target.files ? Array.from(target.files) : [];
+  editFiles.value = [...editFiles.value, ...next];
+  if (editFileInputRef.value) {
+    editFileInputRef.value.value = '';
+  }
+}
+
+function clearEditFiles() {
+  editFiles.value = [];
+  if (editFileInputRef.value) {
+    editFileInputRef.value.value = '';
+  }
+}
+
+function removeEditFile(index: number) {
+  editFiles.value = editFiles.value.filter((_, i) => i !== index);
+}
+
+function formatFileSize(value: number) {
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function moveEditFile(index: number, direction: number) {
+  const nextIndex = index + direction;
+  if (nextIndex < 0 || nextIndex >= editFiles.value.length) return;
+  const next = [...editFiles.value];
+  const [item] = next.splice(index, 1);
+  next.splice(nextIndex, 0, item);
+  editFiles.value = next;
+}
+
+function handleEditDragStart(index: number) {
+  editDragIndex.value = index;
+}
+
+function handleEditDrop(index: number) {
+  if (editDragIndex.value === null) return;
+  const from = editDragIndex.value;
+  const to = index;
+  editDragIndex.value = null;
+  if (from === to) return;
+  const next = [...editFiles.value];
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item);
+  editFiles.value = next;
 }
 
 async function handleUpdate() {
   error.value = '';
   try {
+    if (stripHtml(editForm.body_html).length === 0) {
+      error.value = 'O corpo do email está vazio.';
+      return;
+    }
     const recipients = [
       ...splitEmails(editForm.to).map((email) => ({ type: 'TO' as const, email })),
       ...splitEmails(editForm.cc).map((email) => ({ type: 'CC' as const, email })),
       ...splitEmails(editForm.bcc).map((email) => ({ type: 'BCC' as const, email }))
     ];
-    const attachments =
-      editFiles.value.length > 0 ? await Promise.all(editFiles.value.map((file) => presignAttachment(file))) : undefined;
+    let attachments;
+    if (editFiles.value.length > 0) {
+      try {
+        attachments = await Promise.all(editFiles.value.map((file) => presignAttachment(file)));
+      } catch (uploadErr) {
+        error.value =
+          uploadErr instanceof Error
+            ? uploadErr.message
+            : 'Falha ao enviar anexos. Verifique sua conexão e tente novamente.';
+        return;
+      }
+    }
 
     await updateEmail(editForm.id, {
       subject: editForm.subject,
       body_html: editForm.body_html,
+      from_name: editForm.from_name.trim(),
       from_alias: editForm.from_alias.trim(),
       scheduled_at: new Date(editForm.scheduled_at).toISOString(),
       recipients,
       ...(attachments ? { attachments } : {})
     });
     editing.value = false;
+    clearEditFiles();
     fetchEmails();
-  } catch {
-    error.value = 'Falha ao atualizar email.';
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Não foi possível atualizar o email. Tente novamente em instantes.';
   }
 }
 
@@ -192,8 +294,8 @@ async function handleSendNow(email: any) {
   try {
     await sendEmailNow(email.id);
     fetchEmails();
-  } catch {
-    error.value = 'Falha ao enviar agora.';
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Falha ao enviar agora.';
   }
 }
 

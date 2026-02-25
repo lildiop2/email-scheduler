@@ -8,6 +8,10 @@ export async function createEmail(userId: string, input: CreateEmailInput) {
     typeof input.from_alias === 'string' && input.from_alias.trim().length > 0
       ? input.from_alias.trim()
       : null;
+  const fromName =
+    typeof input.from_name === 'string' && input.from_name.trim().length > 0
+      ? input.from_name.trim()
+      : null;
 
   return prisma.$transaction(async (tx) => {
     const email = await tx.email.create({
@@ -16,6 +20,7 @@ export async function createEmail(userId: string, input: CreateEmailInput) {
         subject: input.subject,
         body_html: input.body_html,
         from_alias: fromAlias,
+        from_name: fromName,
         status: EmailStatus.SCHEDULED,
         scheduled_at: scheduledAt
       }
@@ -98,6 +103,10 @@ export async function updateEmail(userId: string, emailId: string, input: Update
   if (typeof input.from_alias === 'string') {
     const nextAlias = input.from_alias.trim();
     updates.from_alias = nextAlias.length > 0 ? nextAlias : null;
+  }
+  if (typeof input.from_name === 'string') {
+    const nextName = input.from_name.trim();
+    updates.from_name = nextName.length > 0 ? nextName : null;
   }
   if (input.scheduled_at) updates.scheduled_at = new Date(input.scheduled_at);
 

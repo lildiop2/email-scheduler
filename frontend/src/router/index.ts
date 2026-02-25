@@ -15,11 +15,12 @@ export const router = createRouter({
 });
 
 router.beforeEach((to) => {
-  if (to.meta.requiresAuth) {
-    const token = localStorage.getItem('accessToken');
-    if (!token) {
-      return { name: 'login' };
-    }
+  const token = localStorage.getItem('accessToken');
+  if (to.meta.requiresAuth && !token) {
+    return { name: 'login' };
+  }
+  if (to.name === 'login' && token) {
+    return { name: 'dashboard' };
   }
   return true;
 });

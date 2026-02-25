@@ -22,6 +22,7 @@ import { z } from 'zod';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { login } from '../services/auth';
+import { resolveApiErrorMessage } from '../utils/errorMessages';
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -47,10 +48,17 @@ async function handleSubmit() {
 
   try {
     const response = await login(parsed.data.email, parsed.data.password);
-    auth.setTokens(response.accessToken, response.refreshToken);
+    auth.setTokens(response.accessToken);
     router.push('/');
-  } catch {
-    error.value = 'Credenciais inválidas.';
+  } catch (err) {
+    error.value = resolveApiErrorMessage(
+      err,
+      [
+        { status: 401, code: 'INVALID_CREDENTIALS', message: 'Email ou senha inválidos.' },
+        { status: 400, code: 'VALIDATION_ERROR', message: 'Preencha email e senha válidos.' }
+      ],
+      'Não foi possível fazer login. Tente novamente.'
+    );
   }
 }
 </script>

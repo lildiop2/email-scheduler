@@ -16,6 +16,7 @@ export const CreateEmailSchema = z.object({
   subject: z.string().min(1),
   body_html: z.string().min(1),
   from_alias: z.string().optional(),
+  from_name: z.string().optional(),
   scheduled_at: z.string().datetime(),
   recipients: z.array(RecipientSchema).min(1),
   attachments: z.array(AttachmentSchema).optional().default([])
@@ -25,6 +26,7 @@ export const UpdateEmailSchema = z.object({
   subject: z.string().min(1).optional(),
   body_html: z.string().min(1).optional(),
   from_alias: z.string().optional(),
+  from_name: z.string().optional(),
   scheduled_at: z.string().datetime().optional(),
   recipients: z.array(RecipientSchema).optional(),
   attachments: z.array(AttachmentSchema).optional()

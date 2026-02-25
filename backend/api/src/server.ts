@@ -1,6 +1,7 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import { env } from './config/env';
 import { authRouter } from './modules/auth/auth.routes';
 import { emailRouter } from './modules/email/email.routes';
@@ -23,6 +24,7 @@ app.use(
 );
 app.use(httpLogger());
 app.use(express.json());
+app.use(cookieParser());
 app.use(
   rateLimit({
     windowMs: 60_000,

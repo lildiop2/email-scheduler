@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
+  baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3000',
+  withCredentials: true
 });
 
 api.interceptors.request.use((config) => {
@@ -15,7 +16,6 @@ api.interceptors.request.use((config) => {
 
 function clearTokens() {
   localStorage.removeItem('accessToken');
-  localStorage.removeItem('refreshToken');
 }
 
 api.interceptors.response.use(
@@ -26,22 +26,15 @@ api.interceptors.response.use(
     const code = error.response?.data?.error;
     if (status === 401 && code === 'ACCESS_EXPIRED' && !original._retry) {
       original._retry = true;
-      const refreshToken = localStorage.getItem('refreshToken');
-      if (!refreshToken) {
-        clearTokens();
-        window.location.href = '/login';
-        return Promise.reject(error);
-      }
-
       try {
-        const { data } = await api.post('/auth/refresh', { refreshToken });
+        const { data } = await api.post('/auth/refresh');
         localStorage.setItem('accessToken', data.accessToken);
-        localStorage.setItem('refreshToken', data.refreshToken);
         original.headers = original.headers ?? {};
         original.headers.Authorization = `Bearer ${data.accessToken}`;
         return api(original);
       } catch (refreshError) {
         clearTokens();
+        window.dispatchEvent(new CustomEvent('auth:logout', { detail: { reason: 'refresh_failed' } }));
         window.location.href = '/login';
         return Promise.reject(refreshError);
       }
@@ -49,6 +42,7 @@ api.interceptors.response.use(
 
     if (status === 401 && (code === 'REFRESH_EXPIRED' || code === 'UNAUTHORIZED')) {
       clearTokens();
+      window.dispatchEvent(new CustomEvent('auth:logout', { detail: { reason: code } }));
       window.location.href = '/login';
     }
 

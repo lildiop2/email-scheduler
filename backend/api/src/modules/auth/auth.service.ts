@@ -112,3 +112,15 @@ export async function refreshTokens(refreshToken: string) {
 
   return { accessToken, refreshToken: newRefreshToken };
 }
+
+export async function revokeRefreshToken(refreshToken: string) {
+  try {
+    const claims = verifyRefreshToken(refreshToken);
+    await prisma.user.update({
+      where: { id: claims.sub },
+      data: { refresh_token_hash: null, refresh_token_expires_at: null }
+    });
+  } catch {
+    // ignore invalid tokens
+  }
+}
