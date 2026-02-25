@@ -63,6 +63,9 @@ export async function refreshHandler(req: Request, res: Response) {
     const result = await refreshTokens(parsed.data.refreshToken);
     return res.status(200).json(result);
   } catch (err) {
+    if ((err as any)?.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'REFRESH_EXPIRED' });
+    }
     const message = err instanceof Error ? err.message : 'UNKNOWN_ERROR';
     if (message !== 'INVALID_REFRESH' && message !== 'REFRESH_EXPIRED') {
       logger.error('auth_refresh_failed', { error: message });

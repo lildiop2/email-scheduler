@@ -7,6 +7,7 @@ export interface AuthenticatedRequest extends Request {
 
 export function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   const header = req.headers.authorization;
+ 
   if (!header || !header.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'UNAUTHORIZED' });
   }
@@ -16,7 +17,10 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
     const claims = verifyAccessToken(token);
     req.user = { id: claims.sub, email: claims.email };
     return next();
-  } catch {
+  } catch (err: any) {
+    if (err?.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'ACCESS_EXPIRED' });
+    }
     return res.status(401).json({ error: 'UNAUTHORIZED' });
   }
 }
