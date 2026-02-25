@@ -1,10 +1,11 @@
 import { startConsumer } from './consumer';
+import { logger } from './infrastructure/logger';
 
 startConsumer()
   .then(() => {
-    console.log('Worker consumer started');
+    logger.info('worker_started');
   })
   .catch((err) => {
-    console.error('Worker failed to start', err);
+    logger.error('worker_start_failed', { err });
     process.exit(1);
   });

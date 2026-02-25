@@ -2,18 +2,21 @@ import { EmailStatus } from '@prisma/client';
 import { prisma } from '../infrastructure/prisma';
 import { getRabbitChannel } from '../infrastructure/rabbitmq';
 import { env } from '../config/env';
+import { logger } from '../infrastructure/logger';
 
 const INTERVAL_MS = 30_000;
 
 async function fetchAndMarkProcessing() {
   return prisma.$transaction(async (tx) => {
-    const rows = await tx.$queryRaw<{ id: string }[]>`
-      SELECT id FROM emails
-      WHERE status = 'SCHEDULED'
-      AND scheduled_at <= now()
-      LIMIT 100
-      FOR UPDATE SKIP LOCKED
-    `;
+    const rows = await tx.email.findMany({
+      where: {
+        status: EmailStatus.SCHEDULED,
+        scheduled_at: { lte: new Date() }
+      },
+      select: { id: true },
+      orderBy: { scheduled_at: 'asc' },
+      take: 100
+    });
 
     if (rows.length === 0) {
       return [] as string[];
@@ -22,7 +25,10 @@ async function fetchAndMarkProcessing() {
     const ids = rows.map((row) => row.id);
 
     await tx.email.updateMany({
-      where: { id: { in: ids } },
+      where: {
+        id: { in: ids },
+        status: EmailStatus.SCHEDULED
+      },
       data: { status: EmailStatus.PROCESSING }
     });
 
@@ -42,6 +48,7 @@ async function publishEmailIds(emailIds: string[]) {
     });
 
     if (!ok) {
+      logger.warn('rabbitmq_publish_backpressure', { emailId });
       await prisma.email.update({
         where: { id: emailId },
         data: { status: EmailStatus.SCHEDULED }
@@ -51,13 +58,26 @@ async function publishEmailIds(emailIds: string[]) {
 }
 
 async function runSchedulerTick() {
+
+  const startedAt = Date.now();
   const ids = await fetchAndMarkProcessing();
+  if (ids.length > 0) {
+    logger.info('scheduler_batch', { count: ids.length });
+  }
   await publishEmailIds(ids);
+  if (ids.length > 0) {
+    logger.info('scheduler_batch_done', { count: ids.length, durationMs: Date.now() - startedAt });
+  }
 }
 
 export function startScheduler() {
-  runSchedulerTick().catch(() => null);
+  logger.info('scheduler_started', { intervalMs: INTERVAL_MS });
+  runSchedulerTick().catch((err) => {
+    logger.error('scheduler_tick_failed', { err });
+  });
   setInterval(() => {
-    runSchedulerTick().catch(() => null);
+    runSchedulerTick().catch((err) => {
+      logger.error('scheduler_tick_failed', { err });
+    });
   }, INTERVAL_MS);
 }

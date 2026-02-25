@@ -6,7 +6,7 @@ import DailyRotateFile from 'winston-daily-rotate-file';
 const { combine, timestamp, errors, json } = winston.format;
 
 const LOG_BASE_DIR = process.env.LOG_DIR ?? path.join(process.cwd(), 'logs');
-const LOG_DIR = path.join(LOG_BASE_DIR, 'api');
+const LOG_DIR = path.join(LOG_BASE_DIR, 'worker');
 fs.mkdirSync(LOG_DIR, { recursive: true });
 
 const baseFormat = combine(
@@ -19,7 +19,7 @@ export const logger = winston.createLogger({
   level: process.env.LOG_LEVEL ?? 'info',
   format: baseFormat,
   defaultMeta: {
-    service: 'email-scheduler-api',
+    service: 'email-scheduler-worker',
     pid: process.pid
   },
   transports: [
@@ -45,21 +45,3 @@ export const logger = winston.createLogger({
     })
   ]
 });
-
-export function httpLogger() {
-  return (req: any, res: any, next: any) => {
-    const start = Date.now();
-
-    res.on('finish', () => {
-      const durationMs = Date.now() - start;
-      logger.info('http_request', {
-        method: req.method,
-        path: req.originalUrl,
-        statusCode: res.statusCode,
-        durationMs
-      });
-    });
-
-    next();
-  };
-}

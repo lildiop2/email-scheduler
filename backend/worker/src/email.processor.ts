@@ -3,6 +3,7 @@ import nodemailer from 'nodemailer';
 import { prisma } from './infrastructure/prisma';
 import { env } from './config/env';
 import { minioClient } from './infrastructure/minio';
+import { logger } from './infrastructure/logger';
 
 export type ProcessResult = 'ack' | 'retry' | 'fail';
 
@@ -68,6 +69,13 @@ export async function processEmail(emailId: string): Promise<ProcessResult> {
         error_message: null
       }
     });
+    logger.info('email_sent', {
+      emailId: email.id,
+      toCount: to.length,
+      ccCount: cc.length,
+      bccCount: bcc.length,
+      attachmentCount: email.attachments.length
+    });
 
     return 'ack';
   } catch (err) {
@@ -81,6 +89,13 @@ export async function processEmail(emailId: string): Promise<ProcessResult> {
         status: reachedLimit ? EmailStatus.FAILED : EmailStatus.PROCESSING,
         error_message: err instanceof Error ? err.message : 'UNKNOWN_ERROR'
       }
+    });
+
+    logger.error('email_send_failed', {
+      emailId: email.id,
+      retryCount: nextRetry,
+      reachedLimit,
+      err
     });
 
     return reachedLimit ? 'fail' : 'retry';
