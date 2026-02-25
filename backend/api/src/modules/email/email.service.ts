@@ -64,6 +64,18 @@ export async function getEmail(userId: string, emailId: string) {
   });
 }
 
+function ensureEditable(status: EmailStatus) {
+  if (status === EmailStatus.SENT) {
+    throw new Error('EMAIL_SENT');
+  }
+  if (status === EmailStatus.PROCESSING) {
+    throw new Error('EMAIL_PROCESSING');
+  }
+  if (status === EmailStatus.FAILED) {
+    throw new Error('EMAIL_FAILED');
+  }
+}
+
 export async function updateEmail(userId: string, emailId: string, input: UpdateEmailInput) {
   const existing = await prisma.email.findFirst({
     where: { id: emailId, user_id: userId }
@@ -73,9 +85,7 @@ export async function updateEmail(userId: string, emailId: string, input: Update
     return null;
   }
 
-  if (existing.status === EmailStatus.SENT) {
-    throw new Error('EMAIL_SENT');
-  }
+  ensureEditable(existing.status);
 
   const updates: Record<string, unknown> = {};
   if (input.subject) updates.subject = input.subject;
@@ -115,5 +125,25 @@ export async function updateEmail(userId: string, emailId: string, input: Update
     }
 
     return email;
+  });
+}
+
+export async function sendEmailNow(userId: string, emailId: string) {
+  const existing = await prisma.email.findFirst({
+    where: { id: emailId, user_id: userId }
+  });
+
+  if (!existing) {
+    return null;
+  }
+
+  ensureEditable(existing.status);
+
+  return prisma.email.update({
+    where: { id: emailId },
+    data: {
+      status: EmailStatus.SCHEDULED,
+      scheduled_at: new Date()
+    }
   });
 }

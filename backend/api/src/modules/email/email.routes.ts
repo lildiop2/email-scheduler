@@ -4,6 +4,7 @@ import {
   createEmailHandler,
   getEmailHandler,
   listEmailsHandler,
+  sendEmailNowHandler,
   updateEmailHandler
 } from './email.controller';
 
@@ -15,3 +16,4 @@ emailRouter.post('/', createEmailHandler);
 emailRouter.get('/', listEmailsHandler);
 emailRouter.get('/:id', getEmailHandler);
 emailRouter.patch('/:id', updateEmailHandler);
+emailRouter.post('/:id/send-now', sendEmailNowHandler);

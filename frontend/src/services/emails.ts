@@ -25,6 +25,16 @@ export async function createEmail(payload: CreateEmailInput) {
   return data;
 }
 
+export async function updateEmail(id: string, payload: Partial<CreateEmailInput>) {
+  const { data } = await api.patch(`/emails/${id}`, payload);
+  return data;
+}
+
+export async function sendEmailNow(id: string) {
+  const { data } = await api.post(`/emails/${id}/send-now`);
+  return data;
+}
+
 export async function listEmails(status?: string) {
   const { data } = await api.get('/emails', { params: status ? { status } : {} });
   return data;

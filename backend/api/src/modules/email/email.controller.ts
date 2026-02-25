@@ -3,7 +3,7 @@ import { EmailStatus } from '@prisma/client';
 import { AuthenticatedRequest } from '../../middlewares/auth';
 import sanitizeHtml from 'sanitize-html';
 import { CreateEmailSchema, UpdateEmailSchema } from './email.schemas';
-import { createEmail, getEmail, listEmails, updateEmail } from './email.service';
+import { createEmail, getEmail, listEmails, sendEmailNow, updateEmail } from './email.service';
 
 export async function createEmailHandler(req: AuthenticatedRequest, res: Response) {
   const parsed = CreateEmailSchema.safeParse(req.body);
@@ -68,10 +68,30 @@ export async function updateEmailHandler(req: AuthenticatedRequest, res: Respons
     return res.status(200).json(email);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'UNKNOWN_ERROR';
-    if (message === 'EMAIL_SENT') {
+    if (message === 'EMAIL_SENT' || message === 'EMAIL_PROCESSING' || message === 'EMAIL_FAILED') {
       return res.status(409).json({ error: message });
     }
 
+    return res.status(500).json({ error: 'INTERNAL_ERROR' });
+  }
+}
+
+export async function sendEmailNowHandler(req: AuthenticatedRequest, res: Response) {
+  if (!req.user) {
+    return res.status(401).json({ error: 'UNAUTHORIZED' });
+  }
+
+  try {
+    const email = await sendEmailNow(req.user.id, req.params.id);
+    if (!email) {
+      return res.status(404).json({ error: 'NOT_FOUND' });
+    }
+    return res.status(200).json(email);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'UNKNOWN_ERROR';
+    if (message === 'EMAIL_SENT' || message === 'EMAIL_PROCESSING' || message === 'EMAIL_FAILED') {
+      return res.status(409).json({ error: message });
+    }
     return res.status(500).json({ error: 'INTERNAL_ERROR' });
   }
 }
