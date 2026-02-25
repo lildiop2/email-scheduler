@@ -1,0 +1,68 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EmailStatus {
+  DRAFT
+  SCHEDULED
+  PROCESSING
+  SENT
+  FAILED
+}
+
+enum RecipientType {
+  TO
+  CC
+  BCC
+}
+
+model User {
+  id            String   @id @default(uuid()) @db.Uuid
+  email         String   @unique
+  password_hash String
+  created_at    DateTime @default(now())
+
+  emails Email[]
+}
+
+model Email {
+  id            String      @id @default(uuid()) @db.Uuid
+  user_id       String      @db.Uuid
+  subject       String
+  body_html     String
+  status        EmailStatus
+  scheduled_at  DateTime
+  sent_at       DateTime?
+  retry_count   Int         @default(0)
+  error_message String?
+  created_at    DateTime    @default(now())
+
+  user        User         @relation(fields: [user_id], references: [id])
+  recipients  Recipient[]
+  attachments Attachment[]
+}
+
+model Recipient {
+  id       String        @id @default(uuid()) @db.Uuid
+  email_id String        @db.Uuid
+  type     RecipientType
+  email    String
+
+  email_ref Email @relation(fields: [email_id], references: [id])
+}
+
+model Attachment {
+  id          String @id @default(uuid()) @db.Uuid
+  email_id    String @db.Uuid
+  filename    String
+  mime_type   String
+  size        Int
+  storage_key String
+
+  email_ref Email @relation(fields: [email_id], references: [id])
+}
