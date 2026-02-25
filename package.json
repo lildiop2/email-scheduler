@@ -5,5 +5,13 @@
     "backend/api",
     "backend/worker",
     "frontend"
-  ]
+  ],
+  "scripts": {
+    "dev:api": "npm --workspace backend/api run dev",
+    "dev:worker": "npm --workspace backend/worker run dev",
+    "dev:frontend": "npm --workspace frontend run dev",
+    "prisma:generate": "npm --workspace backend/api run prisma:generate",
+    "prisma:migrate": "npm --workspace backend/api run prisma:migrate",
+    "prisma:seed": "npm --workspace backend/api run prisma:seed"
+  }
 }

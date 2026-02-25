@@ -36,6 +36,7 @@ export async function presignUploadHandler(req: AuthenticatedRequest, res: Respo
       expires_in: 600
     });
   } catch (err) {
+    console.log(err);
     return res.status(500).json({ error: 'PRESIGN_FAILED' });
   }
 }

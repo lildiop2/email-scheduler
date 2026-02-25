@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { LoginSchema, RefreshSchema, RegisterSchema } from './auth.schemas';
+import { logger } from '../../infrastructure/logger';
 import { loginUser, refreshTokens, registerUser } from './auth.service';
 
 export async function registerHandler(req: Request, res: Response) {
@@ -17,6 +18,9 @@ export async function registerHandler(req: Request, res: Response) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'UNKNOWN_ERROR';
+    if (message !== 'EMAIL_IN_USE') {
+      logger.error('auth_register_failed', { error: message });
+    }
     if (message === 'EMAIL_IN_USE') {
       return res.status(409).json({ error: message });
     }
@@ -39,6 +43,9 @@ export async function loginHandler(req: Request, res: Response) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'UNKNOWN_ERROR';
+    if (message !== 'INVALID_CREDENTIALS') {
+      logger.error('auth_login_failed', { error: message });
+    }
     if (message === 'INVALID_CREDENTIALS') {
       return res.status(401).json({ error: message });
     }
@@ -57,6 +64,9 @@ export async function refreshHandler(req: Request, res: Response) {
     return res.status(200).json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'UNKNOWN_ERROR';
+    if (message !== 'INVALID_REFRESH' && message !== 'REFRESH_EXPIRED') {
+      logger.error('auth_refresh_failed', { error: message });
+    }
     if (message === 'INVALID_REFRESH' || message === 'REFRESH_EXPIRED') {
       return res.status(401).json({ error: message });
     }

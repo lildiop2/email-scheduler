@@ -1,6 +1,6 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
-import pinoHttp from 'pino-http';
+import cors from 'cors';
 import { env } from './config/env';
 import { authRouter } from './modules/auth/auth.routes';
 import { emailRouter } from './modules/email/email.routes';
@@ -8,10 +8,20 @@ import { attachmentRouter } from './modules/attachments/attachment.routes';
 import { healthRouter } from './modules/health/health.routes';
 import { metricsRouter } from './modules/metrics/metrics.routes';
 import { startScheduler } from './scheduler/scheduler';
+import { httpLogger, logger } from './infrastructure/logger';
 
 const app = express();
 
-app.use(pinoHttp());
+const corsOriginsRaw = process.env.CORS_ORIGIN;
+const corsOrigins = corsOriginsRaw ? corsOriginsRaw.split(',').map((value) => value.trim()) : null;
+
+app.use(
+  cors({
+    origin: corsOrigins ?? true,
+    credentials: Boolean(corsOrigins)
+  })
+);
+app.use(httpLogger());
 app.use(express.json());
 app.use(
   rateLimit({
@@ -27,7 +37,7 @@ app.use('/health', healthRouter);
 app.use('/metrics', metricsRouter);
 
 app.listen(env.port, () => {
-  console.log(`API listening on port ${env.port}`);
+  logger.info('api_started', { port: env.port });
 });
 
 startScheduler();
