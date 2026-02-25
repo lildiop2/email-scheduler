@@ -54,8 +54,28 @@
           <input v-model="editForm.subject" class="w-full rounded border border-slate-200 px-3 py-2" type="text" />
         </div>
         <div>
+          <label class="mb-2 block text-sm font-medium">Alias do remetente (opcional)</label>
+          <input v-model="editForm.from_alias" class="w-full rounded border border-slate-200 px-3 py-2" type="text" />
+        </div>
+        <div>
           <label class="mb-2 block text-sm font-medium">Corpo (HTML)</label>
           <textarea v-model="editForm.body_html" class="h-32 w-full rounded border border-slate-200 px-3 py-2"></textarea>
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium">Destinatários TO (separe por vírgula)</label>
+          <input v-model="editForm.to" class="w-full rounded border border-slate-200 px-3 py-2" type="text" />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium">Destinatários CC</label>
+          <input v-model="editForm.cc" class="w-full rounded border border-slate-200 px-3 py-2" type="text" />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium">Destinatários BCC</label>
+          <input v-model="editForm.bcc" class="w-full rounded border border-slate-200 px-3 py-2" type="text" />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium">Anexos (substitui os atuais)</label>
+          <input class="w-full rounded border border-slate-200 px-3 py-2" type="file" multiple @change="handleEditFiles" />
         </div>
         <div>
           <label class="mb-2 block text-sm font-medium">Agendar para</label>
@@ -73,7 +93,7 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
-import { listEmails, sendEmailNow, updateEmail } from '../services/emails';
+import { listEmails, presignAttachment, sendEmailNow, updateEmail } from '../services/emails';
 
 const statuses = ['SCHEDULED', 'SENT', 'FAILED'];
 const status = ref('SCHEDULED');
@@ -81,11 +101,16 @@ const emails = ref<any[]>([]);
 const loading = ref(false);
 const editing = ref(false);
 const error = ref('');
+const editFiles = ref<File[]>([]);
 
 const editForm = reactive({
   id: '',
   subject: '',
+  from_alias: '',
   body_html: '',
+  to: '',
+  cc: '',
+  bcc: '',
   scheduled_at: ''
 });
 
@@ -112,21 +137,49 @@ function openEdit(email: any) {
   error.value = '';
   editForm.id = email.id;
   editForm.subject = email.subject;
+  editForm.from_alias = email.from_alias ?? '';
   editForm.body_html = email.body_html;
   editForm.scheduled_at = email.scheduled_at.slice(0, 16);
+  editForm.to = email.recipients.filter((r: any) => r.type === 'TO').map((r: any) => r.email).join(', ');
+  editForm.cc = email.recipients.filter((r: any) => r.type === 'CC').map((r: any) => r.email).join(', ');
+  editForm.bcc = email.recipients.filter((r: any) => r.type === 'BCC').map((r: any) => r.email).join(', ');
+  editFiles.value = [];
 }
 
 function cancelEdit() {
   editing.value = false;
 }
 
+function splitEmails(value: string) {
+  return value
+    .split(',')
+    .map((email) => email.trim())
+    .filter((email) => email.length > 0);
+}
+
+function handleEditFiles(event: Event) {
+  const target = event.target as HTMLInputElement;
+  editFiles.value = target.files ? Array.from(target.files) : [];
+}
+
 async function handleUpdate() {
   error.value = '';
   try {
+    const recipients = [
+      ...splitEmails(editForm.to).map((email) => ({ type: 'TO' as const, email })),
+      ...splitEmails(editForm.cc).map((email) => ({ type: 'CC' as const, email })),
+      ...splitEmails(editForm.bcc).map((email) => ({ type: 'BCC' as const, email }))
+    ];
+    const attachments =
+      editFiles.value.length > 0 ? await Promise.all(editFiles.value.map((file) => presignAttachment(file))) : undefined;
+
     await updateEmail(editForm.id, {
       subject: editForm.subject,
       body_html: editForm.body_html,
-      scheduled_at: new Date(editForm.scheduled_at).toISOString()
+      from_alias: editForm.from_alias.trim(),
+      scheduled_at: new Date(editForm.scheduled_at).toISOString(),
+      recipients,
+      ...(attachments ? { attachments } : {})
     });
     editing.value = false;
     fetchEmails();

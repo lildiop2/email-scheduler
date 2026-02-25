@@ -7,6 +7,10 @@
         <input v-model="form.subject" class="w-full rounded border border-slate-200 px-3 py-2" type="text" />
       </div>
       <div>
+        <label class="mb-2 block text-sm font-medium">Alias do remetente (opcional)</label>
+        <input v-model="form.from_alias" class="w-full rounded border border-slate-200 px-3 py-2" type="text" />
+      </div>
+      <div>
         <label class="mb-2 block text-sm font-medium">Corpo (HTML)</label>
         <textarea v-model="form.body_html" class="h-40 w-full rounded border border-slate-200 px-3 py-2"></textarea>
       </div>
@@ -47,6 +51,7 @@ const files = ref<File[]>([]);
 const form = reactive({
   subject: '',
   body_html: '',
+  from_alias: '',
   to: '',
   cc: '',
   bcc: '',
@@ -91,6 +96,7 @@ async function handleSubmit() {
     await createEmail({
       subject: form.subject,
       body_html: form.body_html,
+      from_alias: form.from_alias.trim() || undefined,
       scheduled_at: scheduledAt,
       recipients,
       attachments
@@ -98,6 +104,7 @@ async function handleSubmit() {
 
     form.subject = '';
     form.body_html = '';
+    form.from_alias = '';
     form.to = '';
     form.cc = '';
     form.bcc = '';

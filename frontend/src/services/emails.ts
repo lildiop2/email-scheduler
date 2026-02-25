@@ -15,6 +15,7 @@ export interface AttachmentInput {
 export interface CreateEmailInput {
   subject: string;
   body_html: string;
+  from_alias?: string;
   scheduled_at: string;
   recipients: RecipientInput[];
   attachments: AttachmentInput[];

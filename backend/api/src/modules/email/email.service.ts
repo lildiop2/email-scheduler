@@ -4,6 +4,10 @@ import { CreateEmailInput, UpdateEmailInput } from './email.schemas';
 
 export async function createEmail(userId: string, input: CreateEmailInput) {
   const scheduledAt = new Date(input.scheduled_at);
+  const fromAlias =
+    typeof input.from_alias === 'string' && input.from_alias.trim().length > 0
+      ? input.from_alias.trim()
+      : null;
 
   return prisma.$transaction(async (tx) => {
     const email = await tx.email.create({
@@ -11,6 +15,7 @@ export async function createEmail(userId: string, input: CreateEmailInput) {
         user_id: userId,
         subject: input.subject,
         body_html: input.body_html,
+        from_alias: fromAlias,
         status: EmailStatus.SCHEDULED,
         scheduled_at: scheduledAt
       }
@@ -90,6 +95,10 @@ export async function updateEmail(userId: string, emailId: string, input: Update
   const updates: Record<string, unknown> = {};
   if (input.subject) updates.subject = input.subject;
   if (input.body_html) updates.body_html = input.body_html;
+  if (typeof input.from_alias === 'string') {
+    const nextAlias = input.from_alias.trim();
+    updates.from_alias = nextAlias.length > 0 ? nextAlias : null;
+  }
   if (input.scheduled_at) updates.scheduled_at = new Date(input.scheduled_at);
 
   return prisma.$transaction(async (tx) => {

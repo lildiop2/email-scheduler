@@ -37,6 +37,7 @@ model Email {
   user_id       String      @db.Uuid
   subject       String
   body_html     String
+  from_alias    String?
   status        EmailStatus
   scheduled_at  DateTime
   sent_at       DateTime?
