@@ -45,22 +45,37 @@ export async function processEmail(emailId: string): Promise<ProcessResult> {
     auth: {
       user: env.smtpUser,
       pass: env.smtpPass
-    }
+    }, logger:logger
   });
 
   try {
     const attachments = await Promise.all(email.attachments.map((a) => loadAttachment(a)));
 
+    const from =
+      email.from_alias && email.from_alias.trim().length > 0
+        ? `"${email.from_alias.trim().replaceAll('"', '\\"')}" <${email.from_alias.trim()}>`
+        : env.smtpUser;
+
+    logger.info('email_sending', {
+      emailId: email.id,
+      from,
+      fromAlias: email.from_alias ?? null
+    });
+
     await transporter.sendMail({
-      from: env.smtpUser,
+      from,
       to,
       cc,
       bcc,
       subject: email.subject,
       html: email.body_html,
-      attachments
+      attachments,
+      envelope:{
+        from: env.smtpUser,
+        to: [...to, ...cc, ...bcc]
+      }
     });
-
+    
     await prisma.email.update({
       where: { id: email.id },
       data: {
