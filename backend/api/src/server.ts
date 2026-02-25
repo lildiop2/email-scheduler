@@ -3,6 +3,7 @@ import { env } from './config/env';
 import { authRouter } from './modules/auth/auth.routes';
 import { emailRouter } from './modules/email/email.routes';
 import { attachmentRouter } from './modules/attachments/attachment.routes';
+import { startScheduler } from './scheduler/scheduler';
 
 const app = express();
 
@@ -16,3 +17,5 @@ app.use('/attachments', attachmentRouter);
 app.listen(env.port, () => {
   console.log(`API listening on port ${env.port}`);
 });
+
+startScheduler();

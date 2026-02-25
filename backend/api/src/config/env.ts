@@ -11,5 +11,9 @@ export const env = {
   minioSecretKey: process.env.MINIO_SECRET_KEY ?? 'minioadmin',
   minioBucket: process.env.MINIO_BUCKET ?? 'email-attachments',
   minioUseSSL: (process.env.MINIO_USE_SSL ?? 'false') === 'true',
-  attachmentMaxSize: Number(process.env.ATTACHMENT_MAX_SIZE ?? 10 * 1024 * 1024)
+  attachmentMaxSize: Number(process.env.ATTACHMENT_MAX_SIZE ?? 10 * 1024 * 1024),
+  rabbitmqUrl: process.env.RABBITMQ_URL ?? 'amqp://guest:guest@localhost:5672',
+  rabbitmqExchange: process.env.RABBITMQ_EXCHANGE ?? 'email.exchange',
+  rabbitmqQueue: process.env.RABBITMQ_QUEUE ?? 'email.send.queue',
+  rabbitmqRoutingKey: process.env.RABBITMQ_ROUTING_KEY ?? 'email.send'
 };
