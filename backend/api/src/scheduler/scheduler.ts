@@ -58,7 +58,6 @@ async function publishEmailIds(emailIds: string[]) {
 }
 
 async function runSchedulerTick() {
-
   const startedAt = Date.now();
   const ids = await fetchAndMarkProcessing();
   if (ids.length > 0) {
@@ -66,7 +65,19 @@ async function runSchedulerTick() {
   }
   await publishEmailIds(ids);
   if (ids.length > 0) {
-    logger.info('scheduler_batch_done', { count: ids.length, durationMs: Date.now() - startedAt });
+    let queueStats: { messageCount: number; consumerCount: number } | null = null;
+    try {
+      const channel = await getRabbitChannel();
+      const info = await channel.checkQueue(env.rabbitmqQueue);
+      queueStats = { messageCount: info.messageCount, consumerCount: info.consumerCount };
+    } catch (err) {
+      logger.warn('queue_stats_failed', { err });
+    }
+    logger.info('scheduler_batch_done', {
+      count: ids.length,
+      durationMs: Date.now() - startedAt,
+      queue: queueStats
+    });
   }
 }
 
