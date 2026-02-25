@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { EmailStatus } from '@prisma/client';
 import { AuthenticatedRequest } from '../../middlewares/auth';
+import sanitizeHtml from 'sanitize-html';
 import { CreateEmailSchema, UpdateEmailSchema } from './email.schemas';
 import { createEmail, getEmail, listEmails, updateEmail } from './email.service';
 
@@ -14,7 +15,10 @@ export async function createEmailHandler(req: AuthenticatedRequest, res: Respons
     return res.status(401).json({ error: 'UNAUTHORIZED' });
   }
 
-  const email = await createEmail(req.user.id, parsed.data);
+  const email = await createEmail(req.user.id, {
+    ...parsed.data,
+    body_html: sanitizeHtml(parsed.data.body_html)
+  });
   return res.status(201).json(email);
 }
 
@@ -53,7 +57,10 @@ export async function updateEmailHandler(req: AuthenticatedRequest, res: Respons
   }
 
   try {
-    const email = await updateEmail(req.user.id, req.params.id, parsed.data);
+    const payload = parsed.data.body_html
+      ? { ...parsed.data, body_html: sanitizeHtml(parsed.data.body_html) }
+      : parsed.data;
+    const email = await updateEmail(req.user.id, req.params.id, payload);
     if (!email) {
       return res.status(404).json({ error: 'NOT_FOUND' });
     }
